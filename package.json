@@ -1,0 +1,16 @@
+{
+  "name": "elemento",
+  "version": "1.0.0",
+  "description": "physics based multiplayer game",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "nick",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.15.2",
+    "matter-js": "^0.12.0",
+    "socket.io": "^1.7.3"
+  }
+}
