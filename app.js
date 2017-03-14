@@ -8,35 +8,49 @@ var socket = io();
 
 var engine;
 var world;
-// var entity;
+var entity;
 var food;
 var elements = [];
 var boundaries = [];
 
-var pos = [];
-var ang = [];
-var rad = [];
 
 socket.on('mouse', function(mx, my) {
     console.log(mx, my);
 });
 
-var sketch = socket.on('element', function(position, angle, radius) {
-    pos.push(position);
-    ang.push(angle);
-    rad.push(radius);
-});
-
 function setup() {
-    createCanvas(700, 700);
+    createCanvas(800, 800);
     engine = Engine.create();
     world = engine.world;
-    world.gravity.y = 0;
     food = Composite.create();
     World.add(world, food);
-    randomFood(300, width, height);
-    // boundaries = walls(10, width, height);
+    walls(10);
+    world.gravity.y = 0;
+    randomFood(300);
+    entity = new Circle(random(20, width - 20), random(20, height - 20), random(1, 3));
+    elements.push(entity);
     // Engine.run(engine);
+}
+
+function randomFood(amount) {
+    for (var i = 0; i < amount; i++) {
+        new Food(random(20, width - 20), random(20, height - 20), 3);
+    }
+}
+
+function walls(thick) {
+    boundaries.push(new Boundary(width / 2, height - thick / 2, width, thick, 0))
+    boundaries.push(new Boundary(width / 2, thick / 2, width, thick, 0))
+    boundaries.push(new Boundary(thick / 2, height / 2, thick, height, 0))
+    boundaries.push(new Boundary(width - thick / 2, height / 2, thick, height, 0))
+}
+
+function ground(thick) {
+    boundaries.push(new Boundary(width / 2, height - thick / 2, width, thick, 0))
+}
+
+function mousePressed() {
+    elements.push(new Circle(mouseX, mouseY, random(1, 3)));
 }
 
 function mouseDragged() {
@@ -48,21 +62,6 @@ function draw() {
     Engine.update(engine);
     tick();
     show();
-    for (var i = pos.length - 1; i >= 0; i--) {
-        for (var j = 0; j < pos[i].length; j++) {
-            push();
-            translate(pos[i][j].x, pos[i][j].y);
-            rotate(ang[i][j]);
-            rectMode(CENTER);
-            fill(69);
-            noStroke();
-            ellipse(0, 0, rad[i][j] * 2);
-            pop();
-        }
-        pos.splice(i, 1);
-        ang.splice(i, 1);
-        rad.splice(i, 1);
-    }
 }
 
 function tick() {
@@ -75,21 +74,16 @@ function tick() {
         });
         var near = Matter.Query.region(food.bodies, elements[i].body.bounds);
         for (var j = 0; j < near.length; j++) {
-            var distance = Vector.magnitude(Vector.sub(elements[i].body.position, near[j].position));
-            if (distance <= elements[0].radius) {
-                elements[i].absorb(near[j]);
-                Composite.remove(food, near[j]);
-                randomFood(1, width, height);
-            }
+            elements[i].absorb(near[j]);
+            Composite.remove(food, near[j]);
+            randomFood(1);
         }
     }
 
     for (var i = elements.length - 1; i >= 0; i--) {
         var near = Matter.Query.region(world.bodies, elements[i].body.bounds);
         for (var j = 0; j < near.length; j++) {
-            var distance = Vector.magnitude(Vector.sub(elements[i].body.position, near[j].position));
-            if (elements[i].body.circleRadius > near[j].circleRadius && distance <= elements[i].radius) {
-                // if (elements[i].body.circleRadius > near[j].circleRadius && distance <= elements[i].radius + near[j].circleRadius) {
+            if (elements[i].body.mass > near[j].mass) {
                 elements[i].absorb(near[j]);
                 World.remove(world, near[j])
                 dead.push(near[j]);
@@ -109,6 +103,14 @@ function tick() {
 }
 
 function show() {
+    for (var i = elements.length - 1; i >= 0; i--)
+        elements[i].show();
+    for (var i = 0; i < boundaries.length; i++)
+        boundaries[i].show();
+    showFood();
+}
+
+function showFood() {
     for (var i = 0; i < food.bodies.length; i++) {
         var body = food.bodies[i];
         var pos = body.position;
@@ -122,18 +124,4 @@ function show() {
         ellipse(0, 0, body.circleRadius * 2);
         pop();
     }
-    var tempPos = [];
-    var tempAng = [];
-    var tempRad = [];
-    for (var i = elements.length - 1; i >= 0; i--) {
-        tempPos.push(elements[i].body.position);
-        tempAng.push(elements[i].body.angle);
-        tempRad.push(elements[i].radius);
-        elements[i].show();
-    }
-    socket.emit('element', tempPos, tempAng, tempRad);
-
-    for (var i = 0; i < boundaries.length; i++)
-        boundaries[i].show();
-
 }
