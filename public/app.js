@@ -1,139 +1,177 @@
-var Engine = Matter.Engine,
-    World = Matter.World,
-    Bodies = Matter.Bodies,
-    Composite = Matter.Composite,
-    Vector = Matter.Vector;
+// var Engine = Matter.Engine,
+//     World = Matter.World,
+//     Bodies = Matter.Bodies,
+//     Composite = Matter.Composite,
+//     Vector = Matter.Vector;
 
 var socket = io();
 
 var engine;
 var world;
-// var entity;
 var food;
 var elements = [];
 var boundaries = [];
+var dead = [];
 
-var pos = [];
-var ang = [];
-var rad = [];
+var bpos = [];
+var bang = [];
+var brad = [];
+var fpos = [];
+var fang = [];
+var frad = [];
 
-socket.on('mouse', function(mx, my) {
-    console.log(mx, my);
-});
-
-var sketch = socket.on('element', function(position, angle, radius) {
-    pos.push(position);
-    ang.push(angle);
-    rad.push(radius);
-});
-
-function setup() {
-    createCanvas(700, 700);
-    engine = Engine.create();
-    world = engine.world;
-    world.gravity.y = 0;
-    food = Composite.create();
-    World.add(world, food);
-    randomFood(300, width, height);
-    // boundaries = walls(10, width, height);
-    // Engine.run(engine);
-}
-
-function mouseDragged() {
-    elements.push(new Circle(mouseX, mouseY, random(1, 3)));
-}
-
-function draw() {
+socket.on('render', function(bpos, bang, brad, fpos, fang, frad) {
+    bpos = bpos;
+    bang = bang;
+    brad = brad;
+    fpos = fpos;
+    fang = fang;
+    frad = frad;
     background(51);
-    Engine.update(engine);
-    tick();
-    show();
-    for (var i = pos.length - 1; i >= 0; i--) {
-        for (var j = 0; j < pos[i].length; j++) {
-            push();
-            translate(pos[i][j].x, pos[i][j].y);
-            rotate(ang[i][j]);
-            rectMode(CENTER);
-            fill(69);
-            noStroke();
-            ellipse(0, 0, rad[i][j] * 2);
-            pop();
-        }
-        pos.splice(i, 1);
-        ang.splice(i, 1);
-        rad.splice(i, 1);
-    }
-}
+    socket.emit('mouse', socket.id, mouseX, mouseY)
 
-function tick() {
-    var dead = [];
-
-    for (var i = elements.length - 1; i >= 0; i--) {
-        elements[i].seek({
-            x: mouseX,
-            y: mouseY
-        });
-        var near = Matter.Query.region(food.bodies, elements[i].body.bounds);
-        for (var j = 0; j < near.length; j++) {
-            var distance = Vector.magnitude(Vector.sub(elements[i].body.position, near[j].position));
-            if (distance <= elements[0].radius) {
-                elements[i].absorb(near[j]);
-                Composite.remove(food, near[j]);
-                randomFood(1, width, height);
-            }
-        }
-    }
-
-    for (var i = elements.length - 1; i >= 0; i--) {
-        var near = Matter.Query.region(world.bodies, elements[i].body.bounds);
-        for (var j = 0; j < near.length; j++) {
-            var distance = Vector.magnitude(Vector.sub(elements[i].body.position, near[j].position));
-            if (elements[i].body.circleRadius > near[j].circleRadius && distance <= elements[i].radius) {
-                // if (elements[i].body.circleRadius > near[j].circleRadius && distance <= elements[i].radius + near[j].circleRadius) {
-                elements[i].absorb(near[j]);
-                World.remove(world, near[j])
-                dead.push(near[j]);
-            }
-        }
-    }
-
-    for (var i = elements.length - 1; i >= 0; i--) {
-        for (var j = 0; j < dead.length; j++) {
-            if (elements[i].body === dead[j]) {
-                elements.splice(i, 1);
-                dead.splice(j, 1);
-                break;
-            }
-        }
-    }
-}
-
-function show() {
-    for (var i = 0; i < food.bodies.length; i++) {
-        var body = food.bodies[i];
-        var pos = body.position;
-        var angle = body.angle;
+    for (var i = 0; i < fpos.length; i++) {
         push();
-        translate(pos.x, pos.y);
-        rotate(angle);
+        translate(fpos[i].x, fpos[i].y);
+        rotate(fang[i]);
         rectMode(CENTER);
         fill(color(0, 255, 0));
         noStroke();
-        ellipse(0, 0, body.circleRadius * 2);
+        ellipse(0, 0, frad[i] * 2);
         pop();
     }
-    var tempPos = [];
-    var tempAng = [];
-    var tempRad = [];
-    for (var i = elements.length - 1; i >= 0; i--) {
-        tempPos.push(elements[i].body.position);
-        tempAng.push(elements[i].body.angle);
-        tempRad.push(elements[i].radius);
-        elements[i].show();
+    for (var i = 0; i < bpos.length; i++) {
+        push();
+        translate(bpos[i].x, bpos[i].y);
+        rotate(bang[i]);
+        rectMode(CENTER);
+        fill(127);
+        noStroke();
+        ellipse(0, 0, brad[i] * 2);
+        pop();
     }
-    socket.emit('element', tempPos, tempAng, tempRad);
+});
 
-    for (var i = 0; i < boundaries.length; i++)
-        boundaries[i].show();
-
+function setup() {
+    createCanvas(800, 800);
+    socket.emit('mouse', socket.id, mouseX, mouseY)
+    // engine = Engine.create();
+    // world = engine.world;
+    // food = Composite.create();
+    // world.gravity.y = 0;
+    // World.add(world, food);
+    // randomFood(300, width, height);
+    // socket.emit('mouse', socket.id, mouseX, mouseY);
 }
+
+
+
+// function draw() {
+//     // background(51);
+//     // Engine.update(engine);
+//     socket.emit('mouse', socket.id, mouseX, mouseY)
+//     // show();
+//     // tick();
+// }
+
+// function tick() {
+//     move();
+//     eat();
+//     absorb();
+//     cleanup();
+//     show();
+// }
+
+function show() {
+    // if (bpos !== undefined) {
+    showFood();
+    showElements();
+    // }
+}
+
+// function show() {
+//   for (var i = 0; i < food.bodies.length; i++)
+//   showFood(food.bodies[i]);
+//
+//   for (var i = elements.length - 1; i >= 0; i--)
+//   elements[i].show();
+//
+//   for (var i = 0; i < boundaries.length; i++)
+//   boundaries[i].show();
+// }
+
+function showFood() {
+    for (var i = 0; i < fpos.length; i++) {
+        push();
+        translate(fpos[i].x, fpos[i].y);
+        rotate(fang[i]);
+        rectMode(CENTER);
+        fill(color(0, 255, 0));
+        noStroke();
+        ellipse(0, 0, frad[i] * 2);
+        pop();
+    }
+}
+
+function showElements() {
+    for (var i = 0; i < bpos.length; i++) {
+        push();
+        translate(bpos[i].x, bpos[i].y);
+        rotate(bang[i]);
+        rectMode(CENTER);
+        fill(127);
+        noStroke();
+        ellipse(0, 0, brad[i] * 2);
+        pop();
+    }
+}
+
+// function move() {
+//     var mouse = {
+//         x: mouseX,
+//         y: mouseY
+//     };
+//     for (var i = 0; i < elements.length; i++) {
+//         elements[i].seek(mouse);
+//     }
+// }
+//
+// function eat() {
+//     for (var i = elements.length - 1; i >= 0; i--) {
+//         var near = Matter.Query.region(food.bodies, elements[i].body.bounds);
+//         for (var j = 0; j < near.length; j++) {
+//             var distance = Vector.magnitude(Vector.sub(elements[i].body.position, near[j].position));
+//             if (distance <= elements[i].radius) {
+//                 elements[i].absorb(near[j]);
+//                 Composite.remove(food, near[j]);
+//                 randomFood(1, width, height);
+//             }
+//         }
+//     }
+// }
+//
+// function absorb() {
+//     for (var i = elements.length - 1; i >= 0; i--) {
+//         var near = Matter.Query.region(world.bodies, elements[i].body.bounds);
+//         for (var j = 0; j < near.length; j++) {
+//             var distance = Vector.magnitude(Vector.sub(elements[i].body.position, near[j].position));
+//             if (elements[i].body.circleRadius > near[j].circleRadius && distance <= elements[i].radius) {
+//                 elements[i].absorb(near[j]);
+//                 World.remove(world, near[j])
+//                 dead.push(near[j]);
+//             }
+//         }
+//     }
+// }
+//
+// function cleanup() {
+//     for (var i = elements.length - 1; i >= 0; i--) {
+//         for (var j = 0; j < dead.length; j++) {
+//             if (elements[i].body === dead[j]) {
+//                 elements.splice(i, 1);
+//                 dead.splice(j, 1);
+//                 break;
+//             }
+//         }
+//     }
+// }

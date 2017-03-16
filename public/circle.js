@@ -1,10 +1,11 @@
-function Circle(x, y, r) {
+function Circle(id, x, y, r) {
     var options = {
         friction: 0,
         restitution: 0.5,
         mass: PI * r * r / 10,
         isSensor: true
     }
+    this.id = id;
     this.body = Bodies.circle(x, y, r, options);
     this.radius = this.body.circleRadius;
     this.alive = true;
@@ -42,7 +43,6 @@ function Circle(x, y, r) {
     this.show = function() {
         var pos = this.body.position;
         var angle = this.body.angle;
-
         push();
         translate(pos.x, pos.y);
         rotate(angle);
@@ -51,6 +51,5 @@ function Circle(x, y, r) {
         noStroke();
         ellipse(0, 0, this.radius * 2);
         pop();
-
     }
 }

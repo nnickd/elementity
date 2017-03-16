@@ -10,7 +10,6 @@ function Food(x, y, r) {
     this.radius = this.body.circleRadius;
     Composite.add(food, this.body);
 
-
     this.show = function() {
         var pos = this.body.position;
         var angle = this.body.angle;
@@ -31,4 +30,17 @@ function randomFood(amount, width, height) {
     for (var i = 0; i < amount; i++) {
         new Food(random(20, width - 20), random(20, height - 20), 3);
     }
+}
+
+function showFood(body) {
+  var pos = body.position;
+  var angle = body.angle;
+  push();
+  translate(pos.x, pos.y);
+  rotate(angle);
+  rectMode(CENTER);
+  fill(color(0, 255, 0));
+  noStroke();
+  ellipse(0, 0, body.circleRadius * 2);
+  pop();
 }
