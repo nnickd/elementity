@@ -4,28 +4,8 @@ var http = require('http').Server(app);
 var io = require('socket.io')(http);
 var Matter = require('matter-js');
 
-var Engine = Matter.Engine,
-    World = Matter.World,
-    Bodies = Matter.Bodies,
-    Composite = Matter.Composite,
-    Vector = Matter.Vector;
-
-var engine;
-var world;
-var food;
-var elements = {};
-// var elements = [];
-var boundaries = [];
-var dead = [];
-var players = [];
-var mouses = {};
-
-engine = Engine.create();
-world = engine.world;
-food = Composite.create();
-world.gravity.y = 0;
-World.add(world, food);
-randomFood(300, 800, 800);
+// var game = require('./game.js');
+// var Game = new game();
 
 app.use('/scripts', express.static(__dirname + '/node_modules/matter-js/build/'))
 app.use('/scripts', express.static(__dirname + '/node_modules/p5/lib/'))
@@ -38,55 +18,87 @@ app.get('/', function(req, res) {
 
 io.on('connection', function(socket) {
     console.log(socket.id + ' connected');
-    players.push(socket.id);
     newPlayer(socket);
 
-    socket.on('mouse', function(id, mx, my) {
+    socket.on('mouse', function(mx, my) {
         mouses[socket.id] = {
             x: mx,
             y: my
         };
-        tick();
-        render(socket);
-
     });
 
     socket.on('disconnect', function() {
         console.log(socket.id + ' disconnected');
-        players.splice(players.indexOf(socket.id, 1));
-        delete mouses[socket.id];
-        delete elements[socket.id];
+        killPlayer(socket);
     });
 });
-
-
-// setInterval(tick, 15);
 
 http.listen(3000, function() {
     console.log('listening on *:3000');
 });
 
+var Engine = Matter.Engine,
+    World = Matter.World,
+    Bodies = Matter.Bodies,
+    Composite = Matter.Composite,
+    Common = Matter.Common,
+    Vector = Matter.Vector;
+
+var engine;
+var world;
+var food;
+var boundaries = [];
+var dead = [];
+var players = [];
+var elements = {};
+var mouses = {};
+var colors = {};
+var width = 800;
+var height = 800;
+
+setup();
+setInterval(tick, 16.66);
+
+function setup() {
+    engine = Engine.create();
+    world = engine.world;
+    food = Composite.create();
+    world.gravity.y = 0;
+    World.add(world, food);
+    randomFood(300, 800, 800);
+}
 
 function newPlayer(socket) {
+    if (players.indexOf(socket.id) < 0)
+        players.push(socket.id);
     var options = {
         friction: 0,
         restitution: 0.5,
         mass: Math.PI * 4 * 4 / 10,
         isSensor: true
     }
-    var body = Bodies.circle(random(20, 780), random(20, 780), 4, options);
+    var body = Bodies.circle(Common.random(20, 780), Common.random(20, 780), 4, options);
     World.add(world, body);
     elements[socket.id] = [body];
+}
+
+function killPlayer(socket) {
+    players.splice(players.indexOf(socket.id, 1));
+    delete mouses[socket.id];
+    for (var i = 0; i < elements[socket.id].length; i++)
+        World.remove(world, elements[socket.id][i]);
+    delete elements[socket.id];
 }
 
 function tick() {
     Engine.update(engine);
     move();
     eat();
-    absorbs();
+    kill();
     cleanup();
-    // render();
-};
+    renderFoods();
+    renderElements();
+}
 
 function move() {
     for (var i = players.length - 1; i >= 0; i--) {
@@ -109,13 +121,14 @@ function eat() {
             if (distance <= elem.circleRadius) {
                 absorb(elem, near[j]);
                 Composite.remove(food, near[j]);
-                randomFood(1, 800, 800);
+                var body = Bodies.circle(Common.random(20, width - 20), Common.random(20, height - 20), 3);
+                Composite.add(food, body);
             }
         }
     }
 }
 
-function absorbs() {
+function kill() {
     for (var i = world.bodies.length - 1; i >= 0; i--) {
         var elem = world.bodies[i];
         var near = Matter.Query.region(world.bodies, elem.bounds);
@@ -123,11 +136,55 @@ function absorbs() {
             var distance = Vector.magnitude(Vector.sub(elem.position, near[j].position));
             if (elem.circleRadius > near[j].circleRadius && distance <= elem.circleRadius) {
                 absorb(elem, near[j]);
-                World.remove(food, near[j]);
+                World.remove(world, near[j]);
                 dead.push(near[j]);
             }
         }
     }
+}
+
+function cleanup() {
+    for (var i = players.length - 1; i >= 0; i--) {
+        var id = players[i];
+        var elem = elements[id];
+        if (elem !== undefined) {
+            for (var k = elem.length - 1; k >= 0; k--) {
+                for (var j = 0; j < dead.length; j++) {
+                    if (elem[k] === dead[j]) {
+                        elem.splice(k, 1);
+                        dead.splice(j, 1);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+function renderFoods() {
+    var pos = [];
+    var ang = [];
+    var rad = [];
+    for (var i = food.bodies.length - 1; i >= 0; i--) {
+        var elem = food.bodies[i];
+        pos.push(elem.position);
+        ang.push(elem.angle);
+        rad.push(elem.circleRadius);
+    }
+    io.emit('render foods', pos, ang, rad);
+}
+
+function renderElements() {
+    var pos = [];
+    var ang = [];
+    var rad = [];
+    for (var i = world.bodies.length - 1; i >= 0; i--) {
+        var elem = world.bodies[i];
+        pos.push(elem.position);
+        ang.push(elem.angle);
+        rad.push(elem.circleRadius);
+    }
+    io.emit('render elements', pos, ang, rad);
 }
 
 function absorb(body, other) {
@@ -156,63 +213,10 @@ function seek(body, target) {
     }
 }
 
-function cleanup() {
-    for (var i = players.length - 1; i >= 0; i--) {
-        var id = players[i];
-        var elem = elements[id];
-        if (elem !== undefined) {
-
-        for (var k = elem.length - 1; k >= 0; k--) {
-            for (var j = 0; j < dead.length; j++) {
-                if (elem[k] === dead[j]) {
-                    elem.splice(k, 1);
-                    dead.splice(j, 1);
-                    break;
-                }
-            }
-        }
-      }
-    }
-}
-
-function render(socket) {
-    var bpos = [];
-    var bang = [];
-    var brad = [];
-    var fpos = [];
-    var fang = [];
-    var frad = [];
-    for (var i = players.length - 1; i >= 0; i--) {
-        var id = players[i];
-        var elem = elements[id];
-        if (elem !== undefined) {
-
-
-        for (var k = elem.length - 1; k >= 0; k--) {
-            bpos.push(elem[k].position);
-            bang.push(elem[k].angle);
-            brad.push(elem[k].circleRadius);
-        }
-      }
-    }
-    for (var i = food.bodies.length - 1; i >= 0; i--) {
-        var f = food.bodies[i];
-        fpos.push(f.position);
-        fang.push(f.angle);
-        frad.push(f.circleRadius);
-    }
-    socket.emit('render', bpos, bang, brad, fpos, fang, frad);
-}
-
-function random(min, max) {
-    min = Math.ceil(min);
-    max = Math.floor(max);
-    return Math.floor(Math.random() * (max - min)) + min;
-}
 
 function randomFood(amount, width, height) {
     for (var i = 0; i < amount; i++) {
-        var body = Bodies.circle(random(20, width - 20), random(20, height - 20), 3);
+        var body = Bodies.circle(Common.random(20, width - 20), Common.random(20, height - 20), 3);
         Composite.add(food, body);
     }
 }

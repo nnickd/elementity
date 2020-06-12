@@ -71,7 +71,8 @@ function tick() {
         elements[i].seek({
             x: mouseX,
             y: mouseY
-        });
+        }); 
+        console.log(elements[i].body.bounds)
         var near = Matter.Query.region(food.bodies, elements[i].body.bounds);
         for (var j = 0; j < near.length; j++) {
             elements[i].absorb(near[j]);
